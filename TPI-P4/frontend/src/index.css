@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+/* Habilitar la variante dark de Tailwind mediante la clase .dark */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Configuración general de la aplicación */
+:root {
+  font-family: Arial, Helvetica, sans-serif;
+  color: #1f2937;
+  background-color: #f8fafc;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Modelo de caja */
+* {
+  box-sizing: border-box;
+}
+
+/* Configuración del documento */
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+/* Los elementos de formulario heredan la tipografía */
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+/* Contenedor principal de React */
+#root {
+  min-height: 100vh;
+}
+
+/* Tema oscuro global */
+.dark {
+  color-scheme: dark;
+}
+
+.dark body {
+  background-color: #0f172a;
+  color: #f1f5f9;
+}
