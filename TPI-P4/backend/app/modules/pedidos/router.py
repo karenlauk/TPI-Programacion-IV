@@ -1,3 +1,5 @@
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 from fastapi import ( APIRouter, Depends, HTTPException, Query, status, )
 from app.core.deps import ( get_current_active_user, require_role, )
 from app.modules.usuarios.models import Usuario

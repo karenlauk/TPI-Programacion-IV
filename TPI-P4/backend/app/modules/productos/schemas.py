@@ -1,11 +1,15 @@
-from typing import Annotated
+from typing import Annotated, Literal
+from datetime import datetime
 from pydantic import StringConstraints
 from sqlmodel import SQLModel, Field
 from app.modules.categorias.schemas import CategoriaRead
 
 NombreProducto = Annotated[
     str,
-    StringConstraints(strip_whitespace=True, min_length=1),
+    StringConstraints(
+        strip_whitespace=True,
+        min_length=1,
+    ),
 ]
 
 class ProductoCreate(SQLModel):
@@ -26,7 +30,6 @@ class ProductoUpdate(SQLModel):
     descripcion: str | None = None
     precio_base: float | None = Field(default=None, ge=0)
     imagen_url: str | None = None
-    stock: int | None = Field(default=None, ge=0)
     disponible: bool | None = None
     categoria_id: int | None = None
 
@@ -55,3 +58,27 @@ class ProductosPaginados(SQLModel):
 
     total: int
     items: list[ProductoRead]
+
+class AjusteStockCreate(SQLModel):
+    """Datos para registrar un ajuste manual de inventario."""
+
+    tipo: Literal["ENTRADA", "SALIDA"]
+    cantidad: int = Field(gt=0)
+    motivo: str = Field(
+        min_length=3,
+        max_length=250,
+    )
+
+class MovimientoStockRead(SQLModel):
+    """Información de un movimiento de stock."""
+
+    id: int
+    producto_id: int
+    pedido_id: int | None
+    tipo: str
+    cantidad: int
+    stock_anterior: int
+    stock_nuevo: int
+    motivo: str
+    created_at: datetime
+    producto_nombre: str

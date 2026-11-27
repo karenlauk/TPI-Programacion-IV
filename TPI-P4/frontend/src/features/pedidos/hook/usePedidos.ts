@@ -1,25 +1,56 @@
 import { useMutation, useQuery, useQueryClient, } from "@tanstack/react-query";
 import { listarPedidos, obtenerPedido, crearPedido, cancelarPedido, cambiarEstadoPedido, obtenerResumenPedidos, } from "../api/pedidos";
 import type { EstadoPedido, PedidoCreate, } from "../types/pedido";
+import { useAuthStore } from "@/features/auth/store/authStore";
 
-const pedidosKey = ["pedidos"];
+const pedidosKey = ["pedidos"] as const;
 
 export function usePedidos(
     skip = 0,
     limit = 20,
     estado?: EstadoPedido
 ) {
+    const usuarioId = useAuthStore(
+        (state) => state.user?.id
+    );
+
     return useQuery({
-        queryKey: [...pedidosKey, { skip, limit, estado }],
-        queryFn: () => listarPedidos({ skip, limit, estado }),
+        queryKey: [
+            ...pedidosKey,
+            usuarioId,
+            { skip, limit, estado },
+        ],
+
+        queryFn: () =>
+            listarPedidos({ skip, limit, estado }),
+
+        enabled: usuarioId !== undefined,
+
+        // Los pedidos se consultan nuevamente al entrar.
+        staleTime: 0,
+        refetchOnMount: "always",
     });
 }
 
 export function usePedido(pedidoId: number) {
+    const usuarioId = useAuthStore(
+        (state) => state.user?.id
+    );
+
     return useQuery({
-        queryKey: [...pedidosKey, pedidoId],
+        queryKey: [
+            ...pedidosKey,
+            usuarioId,
+            pedidoId,
+        ],
+
         queryFn: () => obtenerPedido(pedidoId),
-        enabled: pedidoId > 0,
+
+        enabled:
+            usuarioId !== undefined &&
+            pedidoId > 0,
+
+        staleTime: 0,
     });
 }
 
@@ -30,8 +61,8 @@ export function useCrearPedido() {
         mutationFn: (pedido: PedidoCreate) =>
             crearPedido(pedido),
 
-        onSuccess: () => {
-            queryClient.invalidateQueries({
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({
                 queryKey: pedidosKey,
             });
         },
@@ -45,8 +76,8 @@ export function useCancelarPedido() {
         mutationFn: (pedidoId: number) =>
             cancelarPedido(pedidoId),
 
-        onSuccess: () => {
-            queryClient.invalidateQueries({
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({
                 queryKey: pedidosKey,
             });
         },
@@ -65,8 +96,8 @@ export function useCambiarEstadoPedido() {
             estado: EstadoPedido;
         }) => cambiarEstadoPedido(pedidoId, estado),
 
-        onSuccess: () => {
-            queryClient.invalidateQueries({
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({
                 queryKey: pedidosKey,
             });
         },

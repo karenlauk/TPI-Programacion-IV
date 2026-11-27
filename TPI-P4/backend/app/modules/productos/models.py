@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
 
@@ -55,4 +56,56 @@ class Producto(SQLModel, table=True):
 
     detalles: list["DetallePedido"] = Relationship(
         back_populates="producto",
+    )
+
+class MovimientoStock(SQLModel, table=True):
+    """Registra cada variación de stock de un producto."""
+
+    __tablename__ = "movimiento_stock"
+
+    id: int | None = Field(
+        default=None,
+        primary_key=True,
+    )
+
+    producto_id: int = Field(
+        foreign_key="producto.id",
+        index=True,
+        nullable=False,
+    )
+
+    pedido_id: int | None = Field(
+        default=None,
+        foreign_key="pedido.id",
+        index=True,
+    )
+
+    tipo: str = Field(
+        max_length=24,
+        nullable=False,
+    )
+
+    cantidad: int = Field(
+        gt=0,
+        nullable=False,
+    )
+
+    stock_anterior: int = Field(
+        ge=0,
+        nullable=False,
+    )
+
+    stock_nuevo: int = Field(
+        ge=0,
+        nullable=False,
+    )
+
+    motivo: str = Field(
+        max_length=250,
+        nullable=False,
+    )
+
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )

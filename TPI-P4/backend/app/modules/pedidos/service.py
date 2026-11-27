@@ -1,8 +1,9 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from app.modules.usuarios.models import Usuario
 from app.modules.pedidos.models import Pedido, DetallePedido
-from app.modules.pedidos.schemas import ( PedidoCreate,CambioEstado, PedidoRead, PedidosPaginados, ResumenPedidos, )
+from app.modules.pedidos.schemas import ( PedidoCreate, CambioEstado, PedidoRead, PedidosPaginados, ResumenPedidos, )
 from app.modules.pedidos.unit_of_work import PedidoUnitOfWork
+from app.modules.productos.models import MovimientoStock
 
 # EXCEPCIONES DE DOMINIO
 class PedidoNoEncontrado(Exception):
@@ -146,6 +147,7 @@ class PedidoService:
             )
 
             total = 0.0
+            movimientos_venta = []
 
             # Bloquear productos ordenados por ID para reducir
             # el riesgo de deadlocks entre compras simultáneas.
@@ -180,8 +182,20 @@ class PedidoService:
                     )
 
                 # Descontar stock.
+                stock_anterior = producto.stock
                 producto.stock -= item.cantidad
                 uow.session.add(producto)
+
+                movimientos_venta.append(
+                    MovimientoStock(
+                        producto_id=producto.id,
+                        tipo="VENTA",
+                        cantidad=item.cantidad,
+                        stock_anterior=stock_anterior,
+                        stock_nuevo=producto.stock,
+                        motivo="Descuento por creación de pedido",
+                    )
+                )
 
                 # Utilizar el precio actual del producto.
                 precio = float(producto.precio_base)
@@ -206,6 +220,10 @@ class PedidoService:
             pedido.total = round(total, 2)
 
             pedido = uow.pedidos.add(pedido)
+
+            for movimiento in movimientos_venta:
+                movimiento.pedido_id = pedido.id
+                uow.session.add(movimiento)
 
             return PedidoRead.model_validate(pedido)
 
@@ -269,27 +287,25 @@ class PedidoService:
                     "Pedido no encontrado."
                 )
 
-            # El endpoint de cancelación está destinado
-            # exclusivamente a clientes.
+            # El endpoint de cancelación está destinado exclusivamente a clientes.
             if usuario.role == "admin":
                 raise TransicionInvalida(
                     "El administrador debe utilizar la gestión de estados."
                 )
 
-            # RN-04: el cliente solamente puede cancelar
-            # sus propios pedidos.
+            # RN-04: el cliente solamente puede cancelar sus propios pedidos.
             if pedido.usuario_id != usuario.id:
                 raise PedidoAjeno(
                     "El pedido pertenece a otro usuario."
                 )
 
-            # RN-02 y RN-04: solamente se cancelan pedidos pendientes.
+            # RN-02 y RN-04: solamente se cancelan pedidos pendientes
             if pedido.estado != "PENDIENTE":
                 raise TransicionInvalida(
                     "Solo se pueden cancelar pedidos propios pendientes."
                 )
 
-            # RN-03: restituir el stock dentro de la misma transacción.
+            # RN-03: restituir el stock dentro de la misma transacción
             self._restituir_stock(uow, pedido)
 
             pedido.estado = "CANCELADO"
@@ -327,14 +343,28 @@ class PedidoService:
 
             productos[producto_id] = producto
 
-        # Restituir el stock de cada detalle.
+        # Restituir el stock de cada item
         for item in pedido.items:
 
             producto = productos[item.producto_id]
-
+            stock_anterior = producto.stock
             producto.stock += item.cantidad
-
             uow.session.add(producto)
+
+            uow.session.add(
+                MovimientoStock(
+                    producto_id=producto.id,
+                    pedido_id=pedido.id,
+                    tipo="REVERSION_VENTA",
+                    cantidad=item.cantidad,
+                    stock_anterior=stock_anterior,
+                    stock_nuevo=producto.stock,
+                    motivo=(
+                        f"Restitución por cancelación "
+                        f"del pedido #{pedido.id}"
+                    ),
+                )
+            )
 
     # RESUMEN ADMINISTRATIVO
     def obtener_resumen(self) -> ResumenPedidos:

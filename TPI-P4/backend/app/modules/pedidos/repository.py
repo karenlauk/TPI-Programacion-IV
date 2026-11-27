@@ -1,4 +1,4 @@
-from datetime import datetime, time, timedelta, timezone
+from datetime import datetime, time, timedelta, timezone, date
 from zoneinfo import ZoneInfo
 from sqlalchemy import func
 from sqlalchemy.orm import selectinload

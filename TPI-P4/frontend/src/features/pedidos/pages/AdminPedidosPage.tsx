@@ -13,6 +13,9 @@ export function AdminPedidosPage() {
     const [pedidoSeleccionadoId, setPedidoSeleccionadoId] =
         useState<number | null>(null);
 
+    const [pedidoAConfirmar, setPedidoAConfirmar] =
+        useState<number | null>(null);
+
     const [errorMessage, setErrorMessage] = useState("");
 
     const pedidosQuery = usePedidos(
@@ -31,6 +34,14 @@ export function AdminPedidosPage() {
         setPedidoSeleccionadoId(null);
     }, []);
 
+    const cerrarConfirmacion = useCallback(() => {
+        if (cambiarEstadoMutation.isPending) return;
+
+        setPedidoAConfirmar(null);
+    }, [cambiarEstadoMutation.isPending]);
+
+    // Cambia el estado de un pedido.
+    // Si el nuevo estado es CANCELADO, primero solicita confirmación.
     async function cambiarEstado(
         pedidoId: number,
         estado: EstadoPedido
@@ -38,11 +49,8 @@ export function AdminPedidosPage() {
         setErrorMessage("");
 
         if (estado === "CANCELADO") {
-            const confirmar = window.confirm(
-                `¿Querés cancelar el pedido #${pedidoId}?`
-            );
-
-            if (!confirmar) return;
+            setPedidoAConfirmar(pedidoId);
+            return;
         }
 
         try {
@@ -50,6 +58,24 @@ export function AdminPedidosPage() {
                 pedidoId,
                 estado,
             });
+        } catch (error) {
+            setErrorMessage(handleApiError(error));
+        }
+    }
+
+    // Ejecuta la cancelación únicamente después de confirmar.
+    async function confirmarCancelacion() {
+        if (pedidoAConfirmar === null) return;
+
+        setErrorMessage("");
+
+        try {
+            await cambiarEstadoMutation.mutateAsync({
+                pedidoId: pedidoAConfirmar,
+                estado: "CANCELADO",
+            });
+
+            setPedidoAConfirmar(null);
         } catch (error) {
             setErrorMessage(handleApiError(error));
         }
@@ -201,6 +227,7 @@ export function AdminPedidosPage() {
                 }}
             />
 
+            {/* Modal de detalle del pedido */}
             <Modal
                 isOpen={pedidoSeleccionadoId !== null}
                 onClose={cerrarDetalle}
@@ -235,6 +262,61 @@ export function AdminPedidosPage() {
                 ) : pedidoDetalle ? (
                     <PedidoDetalle pedido={pedidoDetalle} />
                 ) : null}
+            </Modal>
+
+            {/* Modal de confirmación de cancelación */}
+            <Modal
+                isOpen={pedidoAConfirmar !== null}
+                onClose={cerrarConfirmacion}
+                title="Confirmar cancelación"
+                size="sm"
+            >
+                {pedidoAConfirmar !== null && (
+                    <div className="space-y-5">
+                        <div className="flex items-start gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300">
+                                <span className="text-xl font-bold">
+                                    !
+                                </span>
+                            </div>
+
+                            <div className="flex-1">
+                                <p className="font-semibold text-slate-800 dark:text-white">
+                                    ¿Estás seguro de que querés cancelar
+                                    el pedido #{pedidoAConfirmar}?
+                                </p>
+
+                                <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                                    Esta acción cambiará el estado del
+                                    pedido a CANCELADO. No podrás
+                                    continuar con su preparación.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={cerrarConfirmacion}
+                                disabled={cambiarEstadoMutation.isPending}
+                                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
+                            >
+                                Volver
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => void confirmarCancelacion()}
+                                disabled={cambiarEstadoMutation.isPending}
+                                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {cambiarEstadoMutation.isPending
+                                    ? "Cancelando..."
+                                    : "Sí, cancelar pedido"}
+                            </button>
+                        </div>
+                    </div>
+                )}
             </Modal>
         </section>
     );

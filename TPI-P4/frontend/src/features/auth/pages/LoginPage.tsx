@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useLocation, useNavigate, } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useForm } from "@tanstack/react-form";
 import { useAuth } from "../hooks/loginPage";
 import { handleApiError } from "@/shared/api/handleApiError";
@@ -57,6 +57,8 @@ export function LoginPage() {
                     replace: true,
                 });
             } catch (error) {
+                console.error("Error al iniciar sesión:", error);
+
                 setErrorMessage(handleApiError(error));
             } finally {
                 setIsSubmitting(false);
@@ -74,15 +76,6 @@ export function LoginPage() {
                 <p className="mb-6 text-center text-sm text-slate-500 dark:text-slate-400">
                     Ingresá tus credenciales para acceder a FoodStore.
                 </p>
-
-                {errorMessage && (
-                    <div
-                        role="alert"
-                        className="mb-4 rounded-md bg-red-100 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300"
-                    >
-                        {errorMessage}
-                    </div>
-                )}
 
                 <form
                     onSubmit={(event) => {
@@ -118,9 +111,7 @@ export function LoginPage() {
                                     autoFocus
                                     value={field.state.value}
                                     onChange={(event) =>
-                                        field.handleChange(
-                                            event.target.value
-                                        )
+                                        field.handleChange(event.target.value)
                                     }
                                     onBlur={field.handleBlur}
                                     disabled={isSubmitting}
@@ -162,9 +153,7 @@ export function LoginPage() {
                                     autoComplete="current-password"
                                     value={field.state.value}
                                     onChange={(event) =>
-                                        field.handleChange(
-                                            event.target.value
-                                        )
+                                        field.handleChange(event.target.value)
                                     }
                                     onBlur={field.handleBlur}
                                     disabled={isSubmitting}
@@ -190,6 +179,15 @@ export function LoginPage() {
                             ? "Ingresando..."
                             : "Iniciar sesión"}
                     </button>
+
+                    {errorMessage && (
+                        <div
+                            role="alert"
+                            className="rounded-md border border-red-300 bg-red-100 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
+                        >
+                            {errorMessage}
+                        </div>
+                    )}
                 </form>
 
                 <p className="mt-6 text-center text-sm text-slate-600 dark:text-slate-300">

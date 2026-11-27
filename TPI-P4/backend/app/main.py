@@ -12,7 +12,7 @@ from app.modules.pedidos.router import router as pedidos_router
 # Importación de modelos para registrarlos en SQLModel.metadata antes de ejecutar create_all_tables().
 from app.modules.usuarios.models import Usuario
 from app.modules.categorias.models import Categoria
-from app.modules.productos.models import Producto
+from app.modules.productos.models import Producto, MovimientoStock
 from app.modules.pedidos.models import Pedido, DetallePedido
 
 @asynccontextmanager

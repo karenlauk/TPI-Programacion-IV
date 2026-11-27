@@ -54,6 +54,7 @@ class UsuarioPedidoRead(SQLModel):
     """Información del cliente asociada al pedido."""
 
     model_config = ConfigDict(from_attributes=True)
+
     id: int
     username: str
     full_name: str
@@ -64,6 +65,7 @@ class DetallePedidoRead(SQLModel):
     """Datos de cada producto incluido en un pedido."""
 
     model_config = ConfigDict(from_attributes=True)
+
     producto_id: int
     nombre_producto: str
     precio_unitario: float
@@ -75,6 +77,7 @@ class PedidoRead(SQLModel):
     """Datos completos de un pedido."""
 
     model_config = ConfigDict(from_attributes=True)
+
     id: int
     usuario_id: int
     usuario: UsuarioPedidoRead

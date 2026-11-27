@@ -1,7 +1,7 @@
 import { create } from "zustand";
-import { createJSONStorage, persist, } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 import { axiosInstance } from "@/shared/api/axiosInstance";
-import type { UsuarioAuth, } from "../types/auth.types";
+import type { UsuarioAuth } from "../types/auth.types";
 
 interface AuthState {
     user: UsuarioAuth | null;
@@ -46,61 +46,46 @@ export const useAuthStore = create<AuthState>()(
 
             // Login mediante formulario OAuth2.
             login: async (username, password) => {
-                set({
-                    checking: true,
-                    user: null,
-                });
+                // "checking" se reserva para la verificación inicial
+                // de sesión. No debe activarse durante el login.
+                const formData = new URLSearchParams();
 
-                try {
-                    const formData = new URLSearchParams();
+                formData.set("username", username.trim());
+                formData.set("password", password);
 
-                    formData.set("username", username.trim());
-                    formData.set("password", password);
-
-                    await axiosInstance.post(
-                        "/auth/token",
-                        formData,
-                        {
-                            headers: {
-                                "Content-Type":
-                                    "application/x-www-form-urlencoded",
-                            },
-                        }
-                    );
-
-                    // El backend establece la cookie HttpOnly.
-                    // El perfil se obtiene mediante /auth/me.
-                    const response = await axiosInstance.get<unknown>(
-                        "/auth/me"
-                    );
-
-                    if (
-                        !isUsuarioAuth(response.data) ||
-                        response.data.disabled
-                    ) {
-                        throw new Error(
-                            "El servidor devolvió un perfil de usuario inválido."
-                        );
+                // Si las credenciales son incorrectas, Axios rechaza
+                // la promesa y LoginPage recibe el error en su catch.
+                await axiosInstance.post(
+                    "/auth/token",
+                    formData,
+                    {
+                        headers: {
+                            "Content-Type":
+                                "application/x-www-form-urlencoded",
+                        },
                     }
+                );
 
-                    const user = response.data;
+                // El backend establece la cookie HttpOnly.
+                // Obtenemos el perfil mediante /auth/me.
+                const response = await axiosInstance.get<unknown>(
+                    "/auth/me"
+                );
 
-                    set({
-                        user,
-                    });
-
-                    return user;
-                } catch (error) {
-                    set({
-                        user: null,
-                    });
-
-                    throw error;
-                } finally {
-                    set({
-                        checking: false,
-                    });
+                if (
+                    !isUsuarioAuth(response.data) ||
+                    response.data.disabled
+                ) {
+                    throw new Error(
+                        "El servidor devolvió un perfil de usuario inválido."
+                    );
                 }
+
+                const user = response.data;
+
+                set({ user });
+
+                return user;
             },
 
             // Cierre de sesión.
@@ -108,8 +93,6 @@ export const useAuthStore = create<AuthState>()(
                 try {
                     await axiosInstance.post("/auth/logout");
                 } finally {
-                    // Aunque falle la comunicación con el servidor,
-                    // se elimina la sesión local.
                     set({
                         user: null,
                         checking: false,
@@ -123,9 +106,7 @@ export const useAuthStore = create<AuthState>()(
                     return checkAuthPromise;
                 }
 
-                set({
-                    checking: true,
-                });
+                set({ checking: true });
 
                 checkAuthPromise = (async () => {
                     try {
@@ -137,25 +118,16 @@ export const useAuthStore = create<AuthState>()(
                             !isUsuarioAuth(response.data) ||
                             response.data.disabled
                         ) {
-                            set({
-                                user: null,
-                            });
-
+                            set({ user: null });
                             return;
                         }
 
-                        set({
-                            user: response.data,
-                        });
+                        set({ user: response.data });
                     } catch {
                         // Sin cookie válida, no existe sesión.
-                        set({
-                            user: null,
-                        });
+                        set({ user: null });
                     } finally {
-                        set({
-                            checking: false,
-                        });
+                        set({ checking: false });
                     }
                 })().finally(() => {
                     checkAuthPromise = null;
